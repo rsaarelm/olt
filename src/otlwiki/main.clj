@@ -1,6 +1,7 @@
 (ns otlwiki.main
   (:require [clojure.main :as main]
             [clojure.zip :as zip]
+            [otlwiki.data :as data]
             [otlwiki.outline :as otl]))
 
 ; Data matching the outline saved on disk.
@@ -34,7 +35,10 @@
     (swap! *saved-outline* (fn [_] @*outline*))
     changed))
 
+(defn load-path [path]
+  (swap! *saved-outline* (fn [_] (otl/load path)))
+  (swap! *outline* (fn [_] @*saved-outline*)))
+
 (defn -main [& args]
-  (swap! *saved-outline* (fn [_] (otl/load (first args))))
-  (swap! *outline* (fn [_] @*saved-outline*))
+  (load-path (first args))
   (main/repl :init #(use 'otlwiki.main)))

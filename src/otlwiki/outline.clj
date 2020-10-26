@@ -5,6 +5,11 @@
 
 (defrecord Outline [head body])
 
+(defn outline [head body]
+  (assert (or (nil? head) (string? head)))
+  (assert (seqable? body))
+  (Outline. head body))
+
 ; This function is mostly for convenient literal-writing in unit tests.
 (defn edn->otl
   "Convert a concise nested vector structure into Outline."
@@ -92,6 +97,12 @@
    (fn [[otl depth _]] (map-indexed #(vector %2 (inc depth) %1) (:body otl)))
    [otl 0 0]))
 
+; XXX: There's probably some clojure-idiomatic way to write this
+(defn tree-map
+  "Map outline and children with function."
+  [f otl]
+  (f (Outline. (:head otl) (map (partial tree-map f) (:body otl)))))
+
 (defn- lines [otl]
   (->> (otl-seq otl)
        (filter (fn [[otl _ idx]] (not (and
@@ -100,6 +111,33 @@
                                        (= idx 0)))))
        (map (fn [[otl depth _]]
               (with-out-str (print-head (:head otl) depth))))))
+
+(defn snip
+  "Extract whitespace separated tokens from outline head.
+
+  Return [token outline-without-token] or nil if head is empty."
+  [otl]
+  (when (:head otl)
+    (let [[token rest] (str/split (str/trim (:head otl)) #"\s+" 2)]
+      (cond
+        (empty? token) nil
+        (empty? rest) [token (assoc otl :head nil)]
+        :else [token (assoc otl :head rest)]))))
+
+(defn attach
+  "Attach prefix to outline.
+
+  Adds whitespace to provide symmetry with snip. Second parameter can also be
+  string or string sequence, in this case a corresponding outline object is
+  constructed."
+  [prefix otl]
+  (let
+   [otl (cond ; Convert string or string seq into Outline
+          (string? otl) (Outline. otl [])
+          (instance? Outline otl) otl
+          :else (do (assert (seqable? otl)) (edn->otl (into [nil] otl))))
+    head (str/trim (str prefix " " (:head otl)))]
+    (Outline. (when-not (empty? head) head) (:body otl))))
 
 ; Print whole outline
 (defn print [otl] (run! println (lines otl)))
