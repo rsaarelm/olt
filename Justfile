@@ -4,9 +4,6 @@ run *ARGS:
 test:
     clj -A:test:runner
 
-repl:
-    clj -A:dev
-
 uberjar:
     clj -A:uberjar
 
